@@ -3,15 +3,10 @@ package com.techpool.muncipality.services;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.techpool.muncipality.entity.Door;
@@ -29,8 +24,9 @@ public class DoorGenerationService {
     WardRepository wardRepo;
     @Autowired
     DoorRepository doorRepo;
-    private static final String[] SUFFIXES = { "", "A", "B", "C" };
-    private final Random random = new Random();
+
+    private final String[] suffixes = { "", "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "O" };
+    private final int maxBase = 999; // Sequential bases: 1-999. Adjust if you want longer/shorter numbering.
 
     public List<Map<String, Object>> generate(int zonesCount, int wardsPerZone, int totalLimit) {
         List<Zone> zones = new ArrayList<>();
@@ -48,7 +44,6 @@ public class DoorGenerationService {
             zone.setDistrict("Kollam");
             zone = zoneRepo.save(zone);
             zones.add(zone);
-            // For each ward in this zone
             for (int w = 1; w <= wardsPerZone; w++) {
                 Ward ward = new Ward();
                 ward.setZone(zone);
@@ -58,24 +53,28 @@ public class DoorGenerationService {
             }
         }
 
-        // 2. For each ward, assign doors
+        // 2. For each ward, assign doors sequentially with suffix as needed
         int wardIndex = 0;
         for (Ward ward : wards) {
             int doorsForThisWard = doorsPerWardBase;
-            // Distribute the remainder randomly or sequentially
             if (wardIndex < remainder)
-                doorsForThisWard++;
-            // Optional: Add a tiny random fluctuation (e.g. ±2)
-            // doorsForThisWard += random.nextInt(-2, 3);
+                doorsForThisWard++; // balance the remainder
+            wardIndex++;
 
-            Set<String> generated = new HashSet<>();
+            int base = 1;
+            int suffixIndex = 0;
+
             for (int i = 0; i < doorsForThisWard; i++) {
-                String doorNum;
-                do {
-                    int base = random.nextInt(100, 9999);
-                    String suffix = SUFFIXES[random.nextInt(SUFFIXES.length)];
-                    doorNum = base + suffix;
-                } while (!generated.add(doorNum));
+                if (base > maxBase) {
+                    base = 1;
+                    suffixIndex++;
+                    if (suffixIndex >= suffixes.length) {
+                        throw new IllegalStateException(
+                                "Not enough suffixes for required door numbers in ward " + ward.getId());
+                    }
+                }
+                String doorNum = base + suffixes[suffixIndex];
+                base++;
 
                 Door door = new Door();
                 door.setDoorNumber(doorNum);
@@ -83,10 +82,10 @@ public class DoorGenerationService {
                 door.setZone(ward.getZone());
                 allDoors.add(door);
             }
-            wardIndex++;
         }
         doorRepo.saveAll(allDoors);
 
+        // 3. Prepare result
         return allDoors.stream().map(door -> {
             Map<String, Object> map = new HashMap<>();
             map.put("zoneNumber", door.getZone().getId());
@@ -94,7 +93,6 @@ public class DoorGenerationService {
             map.put("doorNumber", door.getDoorNumber());
             map.put("municipalityName", door.getZone().getMunicipalityName());
             return map;
-        }).collect(Collectors.toList());
-
+        }).toList();
     }
 }
