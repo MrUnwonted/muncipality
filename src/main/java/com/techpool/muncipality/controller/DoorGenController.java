@@ -18,10 +18,7 @@ public class DoorGenController {
     DoorGenerationService service;
 
     @GetMapping
-    public List<Map<String, Object>> generate(
-            @RequestParam(defaultValue = "7") int zones,
-            @RequestParam(defaultValue = "10") int wardsPerZone,
-            @RequestParam(defaultValue = "6000") int limit) {
-        return service.generate(zones, wardsPerZone, limit);
+    public List<Map<String, Object>> generate(@RequestParam(defaultValue = "6000") int limit) {
+        return service.generate(limit); // Now, only limit
     }
 }

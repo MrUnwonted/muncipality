@@ -10,10 +10,14 @@ public class Ward {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name="name")
+    private String name;
+
     @ManyToOne
     @JoinColumn(name="zone_id")
     private Zone zone;
 
-    private String description;
-
+    // Optionally: extra details (use if present)
+    // private String description;
 }
+

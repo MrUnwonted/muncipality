@@ -25,40 +25,22 @@ public class DoorGenerationService {
     @Autowired
     DoorRepository doorRepo;
 
-    private final String[] suffixes = { "", "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "O" };
-    private final int maxBase = 999; // Sequential bases: 1-999. Adjust if you want longer/shorter numbering.
+    private final String[] suffixes = { "", "A", "B", "C", "D", "E",  };
+    private final int maxBase = 999; // or adjust as needed
 
-    public List<Map<String, Object>> generate(int zonesCount, int wardsPerZone, int totalLimit) {
-        List<Zone> zones = new ArrayList<>();
-        List<Ward> wards = new ArrayList<>();
+    public List<Map<String, Object>> generate(int totalLimit) {
+
+        List<Ward> wards = wardRepo.findAll();
         List<Door> allDoors = new ArrayList<>();
-        int totalWards = zonesCount * wardsPerZone;
+        int totalWards = wards.size();
         int doorsPerWardBase = totalLimit / totalWards;
         int remainder = totalLimit % totalWards;
 
-        // 1. Create zones and wards
-        for (int z = 1; z <= zonesCount; z++) {
-            Zone zone = new Zone();
-            zone.setMunicipalityName("Kollam Municipality " + z);
-            zone.setDescription("Zone " + z);
-            zone.setDistrict("Kollam");
-            zone = zoneRepo.save(zone);
-            zones.add(zone);
-            for (int w = 1; w <= wardsPerZone; w++) {
-                Ward ward = new Ward();
-                ward.setZone(zone);
-                ward.setDescription("Ward " + w);
-                ward = wardRepo.save(ward);
-                wards.add(ward);
-            }
-        }
-
-        // 2. For each ward, assign doors sequentially with suffix as needed
         int wardIndex = 0;
         for (Ward ward : wards) {
             int doorsForThisWard = doorsPerWardBase;
             if (wardIndex < remainder)
-                doorsForThisWard++; // balance the remainder
+                doorsForThisWard++;
             wardIndex++;
 
             int base = 1;
@@ -85,13 +67,13 @@ public class DoorGenerationService {
         }
         doorRepo.saveAll(allDoors);
 
-        // 3. Prepare result
         return allDoors.stream().map(door -> {
             Map<String, Object> map = new HashMap<>();
-            map.put("zoneNumber", door.getZone().getId());
-            map.put("wardNumber", door.getWard().getId());
+            map.put("zoneId", door.getZone().getId());
+            map.put("wardId", door.getWard().getId());
+            map.put("wardName", door.getWard().getName());
+            map.put("zoneName", door.getZone().getName());
             map.put("doorNumber", door.getDoorNumber());
-            map.put("municipalityName", door.getZone().getMunicipalityName());
             return map;
         }).toList();
     }

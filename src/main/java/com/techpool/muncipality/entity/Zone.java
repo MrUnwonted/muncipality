@@ -2,7 +2,7 @@ package com.techpool.muncipality.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
+ 
 @Entity
 @Data
 public class Zone {
@@ -10,8 +10,11 @@ public class Zone {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String municipalityName;
-    private String description;
-    private String district;
+    @Column(name="name")
+    private String name;
 
+    // Optionally: extra details (use if your DB has these columns)
+    // private String description;
+    // private String district;
 }
+

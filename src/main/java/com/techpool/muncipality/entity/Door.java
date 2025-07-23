@@ -19,5 +19,4 @@ public class Door {
     @ManyToOne
     @JoinColumn(name = "zone_id")
     private Zone zone;
-
 }
