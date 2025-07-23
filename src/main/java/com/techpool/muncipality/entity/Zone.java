@@ -14,7 +14,7 @@ public class Zone {
     private String name;
 
     // Optionally: extra details (use if your DB has these columns)
-    // private String description;
+    private String zoneCode;
     // private String district;
 }
 

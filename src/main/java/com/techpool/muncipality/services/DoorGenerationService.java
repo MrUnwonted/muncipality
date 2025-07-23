@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.techpool.muncipality.entity.Door;
 import com.techpool.muncipality.entity.Ward;
+import com.techpool.muncipality.entity.Zone;
 import com.techpool.muncipality.repository.DoorRepository;
 import com.techpool.muncipality.repository.WardRepository;
 
@@ -34,6 +35,8 @@ public class DoorGenerationService {
         int wardIndex = 0;
         Random rand = new Random();
 
+        long globalSeq = 1; // Seq for building id, unique across all doors
+
         for (Ward ward : wards) {
             int doorsForThisWard = doorsPerWardBase;
             if (wardIndex < remainder)
@@ -43,10 +46,11 @@ public class DoorGenerationService {
             // -- Core logic for proper municipal door numbers:
             // Per ward, sequential unique numbers with progressive suffixes only if needed
             Map<Integer, Integer> baseUsage = new HashMap<>();
-            int nextNum = 1;
             Set<String> used = new HashSet<>();
+            int nextNum = 1;
             int doorsCreated = 0;
             while (doorsCreated < doorsForThisWard) {
+                // --- Door Number Logic (realistic, with rare suffixes) ---
                 String doorNum;
 
                 // For realism: 90-95% just get the next sequential number
@@ -68,10 +72,20 @@ public class DoorGenerationService {
                     }
                 }
                 if (used.add(doorNum)) {
+                    // --- Building Id Logic ---
+                    // zoneCode: must be present in your zone table/entity
+                    String zoneCode = String.format("%04d", ward.getZone().getId()); // 4-Digit
+                    String wardCode = String.format("%04d", ward.getId()); // 4-Digit
+                    int year = 1950 + rand.nextInt(2011 - 1950); // [1950, 2010]
+                    String yearCode = String.format("%02d", year % 100);
+                    String uniqueSeq = String.format("%07d", globalSeq++);
+                    String buildingId = zoneCode + wardCode + yearCode + uniqueSeq; // 17 digit
+
                     Door door = new Door();
                     door.setDoorNumber(doorNum);
                     door.setWard(ward);
                     door.setZone(ward.getZone());
+                    door.setBuildingId(buildingId);
                     allDoors.add(door);
                     doorsCreated++;
                 }
@@ -88,6 +102,7 @@ public class DoorGenerationService {
             map.put("wardName", door.getWard().getName());
             map.put("zoneName", door.getZone().getName());
             map.put("doorNumber", door.getDoorNumber());
+            map.put("buildingId", door.getBuildingId());
             return map;
         }).toList();
     }

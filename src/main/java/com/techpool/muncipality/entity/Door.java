@@ -19,4 +19,8 @@ public class Door {
     @ManyToOne
     @JoinColumn(name = "zone_id")
     private Zone zone;
+
+    @Column(length = 17, unique = true, nullable = false)
+    private String buildingId;
+
 }
