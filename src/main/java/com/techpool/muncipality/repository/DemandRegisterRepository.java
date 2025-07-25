@@ -4,6 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.techpool.muncipality.entity.DemandRegister;
 
-public interface DemandRegisterRepository extends JpaRepository<Long, DemandRegister> {
+public interface DemandRegisterRepository extends JpaRepository<DemandRegister,Long> {
 
 }

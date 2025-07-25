@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.techpool.muncipality.entity.BuildingMaster;
 import com.techpool.muncipality.entity.Ward;
-import com.techpool.muncipality.repository.DoorRepository;
+import com.techpool.muncipality.repository.BuildingMasterRepository;
 import com.techpool.muncipality.repository.WardRepository;
 
 @Service
@@ -19,7 +19,7 @@ public class DoorGenerationService {
     @Autowired
     WardRepository wardRepo;
     @Autowired
-    DoorRepository doorRepo;
+    BuildingMasterRepository buildingRepo;
 
     private final String[] suffixes = { "", "A", "B", "C", "D", "E", "F" }; // can be extended
     // private final int maxBase = 999; // 1 to 999: common max for municipalities
@@ -114,7 +114,7 @@ public class DoorGenerationService {
                 }
             }
         }
-        doorRepo.saveAll(allDoors);
+        buildingRepo.saveAll(allDoors);
         System.out.println("Created");
 
         // API/display output

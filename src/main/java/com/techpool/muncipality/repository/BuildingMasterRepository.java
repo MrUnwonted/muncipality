@@ -4,5 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.techpool.muncipality.entity.BuildingMaster;
 
-public interface DoorRepository extends JpaRepository<BuildingMaster, Long> {
+public interface BuildingMasterRepository extends JpaRepository<BuildingMaster, Long> {
 }
