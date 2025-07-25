@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Entity
 @Data
-public class Door {
+public class BuildingMaster {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,5 +22,11 @@ public class Door {
 
     @Column(length = 17, unique = true, nullable = false)
     private String buildingId;
+
+    private String taxRate;
+
+    private String squareFeet;
+
+    private boolean isCommercial;
 
 }

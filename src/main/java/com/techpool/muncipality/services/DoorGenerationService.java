@@ -9,7 +9,7 @@ import java.util.Random;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.techpool.muncipality.entity.Door;
+import com.techpool.muncipality.entity.BuildingMaster;
 import com.techpool.muncipality.entity.Ward;
 import com.techpool.muncipality.entity.Zone;
 import com.techpool.muncipality.repository.DoorRepository;
@@ -24,11 +24,23 @@ public class DoorGenerationService {
 
     private final String[] suffixes = { "", "A", "B", "C", "D", "E", "F" }; // can be extended
     private final int maxBase = 999; // 1 to 999: common max for municipalities
+    // Define square feet ranges and corresponding tax rates (half-year rates)
+    private static final int[][] SQUARE_FEET_RANGES_AND_TAX = {
+            { 800, 1000, 100 },
+            { 1001, 1500, 150 },
+            { 1501, 2000, 200 },
+            { 2001, 2500, 250 },
+            { 2501, 3000, 300 },
+            { 3001, 4000, 350 }
+    };
+    private static final int MIN_SQ_FEET = 800;
+    private static final int MAX_SQ_FEET = 4000;
+    private static final double COMMERCIAL_PROBABILITY = 0.2; // 30% chance of being commercial
 
     public List<Map<String, Object>> generate(int totalLimit) {
         System.out.println("Starting.........");
         List<Ward> wards = wardRepo.findAll();
-        List<Door> allDoors = new ArrayList<>();
+        List<BuildingMaster> allDoors = new ArrayList<>();
         int totalWards = wards.size();
         int doorsPerWardBase = totalLimit / totalWards;
         int remainder = totalLimit % totalWards;
@@ -81,11 +93,23 @@ public class DoorGenerationService {
                     String uniqueSeq = String.format("%07d", globalSeq++);
                     String buildingId = zoneCode + wardCode + yearCode + uniqueSeq; // 17 digit
 
-                    Door door = new Door();
+                    int squareFeet = MIN_SQ_FEET + rand.nextInt(MAX_SQ_FEET - MIN_SQ_FEET + 1);
+                    int taxRate = calculateTaxRate(squareFeet, true);
+                    boolean isCommercial = rand.nextDouble() < COMMERCIAL_PROBABILITY;
+
+                    // Apply commercial multiplier if needed (commercial properties pay 1.5x tax)
+                    // if (isCommercial) {
+                    // taxRate = (int) Math.round(taxRate * 1.5);
+                    // }
+
+                    BuildingMaster door = new BuildingMaster();
                     door.setDoorNumber(doorNum);
                     door.setWard(ward);
                     door.setZone(ward.getZone());
                     door.setBuildingId(buildingId);
+                    door.setSquareFeet(String.valueOf(squareFeet));
+                    door.setTaxRate(String.valueOf(taxRate));
+                    door.setCommercial(isCommercial);
                     allDoors.add(door);
                     doorsCreated++;
                 }
@@ -103,7 +127,21 @@ public class DoorGenerationService {
             map.put("zoneName", door.getZone().getName());
             map.put("doorNumber", door.getDoorNumber());
             map.put("buildingId", door.getBuildingId());
+            map.put("squareFeet", door.getSquareFeet());
+            map.put("taxRate", door.getTaxRate());
+            map.put("isCommercial", door.isCommercial());
             return map;
         }).toList();
+    }
+
+    private int calculateTaxRate(int squareFeet, boolean isHalfYear) {
+        for (int[] rangeAndTax : SQUARE_FEET_RANGES_AND_TAX) {
+            if (squareFeet >= rangeAndTax[0] && squareFeet <= rangeAndTax[1]) {
+                return isHalfYear ? rangeAndTax[2] : rangeAndTax[2] * 2;
+            }
+        }
+        // Fallback
+        return isHalfYear ? SQUARE_FEET_RANGES_AND_TAX[SQUARE_FEET_RANGES_AND_TAX.length - 1][2]
+                : SQUARE_FEET_RANGES_AND_TAX[SQUARE_FEET_RANGES_AND_TAX.length - 1][2] * 2;
     }
 }
