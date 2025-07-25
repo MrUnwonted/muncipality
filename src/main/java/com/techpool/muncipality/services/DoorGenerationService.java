@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.techpool.muncipality.entity.BuildingMaster;
 import com.techpool.muncipality.entity.Ward;
-import com.techpool.muncipality.entity.Zone;
 import com.techpool.muncipality.repository.DoorRepository;
 import com.techpool.muncipality.repository.WardRepository;
 
@@ -23,7 +22,7 @@ public class DoorGenerationService {
     DoorRepository doorRepo;
 
     private final String[] suffixes = { "", "A", "B", "C", "D", "E", "F" }; // can be extended
-    private final int maxBase = 999; // 1 to 999: common max for municipalities
+    // private final int maxBase = 999; // 1 to 999: common max for municipalities
     // Define square feet ranges and corresponding tax rates (half-year rates)
     private static final int[][] SQUARE_FEET_RANGES_AND_TAX = {
             { 800, 1000, 100 },
