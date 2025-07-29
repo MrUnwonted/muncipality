@@ -1,5 +1,8 @@
 package com.techpool.muncipality.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -7,8 +10,8 @@ import lombok.Data;
 @Data
 public class BuildingMaster {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(length = 17, unique = true, nullable = false)
+    private String buildingId;
 
     private String doorNumber;
 
@@ -20,13 +23,13 @@ public class BuildingMaster {
     @JoinColumn(name = "zone_id")
     private Zone zone;
 
-    @Column(length = 17, unique = true, nullable = false)
-    private String buildingId;
-
     private String taxRate;
 
     private String squareFeet;
 
     private boolean isCommercial;
+
+    @OneToMany(mappedBy = "building", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DemandRegister> demands = new ArrayList<>();
 
 }
