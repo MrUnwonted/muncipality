@@ -35,90 +35,60 @@ public class DemandGenerationService {
                 throw new RuntimeException("Building Master table is empty");
             }
 
-            // Generate initial data for startYear (50% of buildings)
-            generateInitialDemandData(startYear);
-
-            // Generate subsequent years
-            for (int year = startYear + 1; year <= endYear; year++) {
-                generateYearlyDemandData(year);
+            // Select buildings once for the entire period (consistent selection)
+            List<BuildingMaster> selectedBuildings = selectBuildings(allBuildings);
+            // Generate complete timeline for each selected building
+            for (BuildingMaster building : selectedBuildings) {
+                generateBuildingDemandTimeline(building, startYear, endYear);
             }
+
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate demand data: " + e.getMessage(), e);
         }
     }
 
-    private void generateInitialDemandData(int year) {
-        List<BuildingMaster> allBuildings = buildingMasterRepository.findAll();
-        int buildingsToProcess = (int) Math.round(allBuildings.size() * 0.5);
-
-        List<BuildingMaster> selectedBuildings = allBuildings.stream()
-                .collect(Collectors.collectingAndThen(
-                        Collectors.toList(),
-                        list -> {
-                            Collections.shuffle(list);
-                            return list.stream();
-                        }))
-                .limit(buildingsToProcess)
+    private List<BuildingMaster> selectBuildings(List<BuildingMaster> allBuildings) {
+        // Select ~50% of buildings (adjust percentage as needed)
+        Collections.shuffle(allBuildings);
+        return allBuildings.stream()
+                .limit((long) (allBuildings.size() * 0.5))
                 .collect(Collectors.toList());
-
-        List<DemandRegister> demandRegisters = selectedBuildings.stream()
-                .map(building -> createDemandForYear(building, year))
-                .collect(Collectors.toList());
-
-        demandRegisterRepository.saveAll(demandRegisters);
     }
 
-    private void generateYearlyDemandData(int year) {
-        // Get all buildings that paid in previous year
-        List<DemandRegister> previousYearDemands = demandRegisterRepository.findByYear(year - 1);
+    private void generateBuildingDemandTimeline(BuildingMaster building, int startYear, int endYear) {
+        List<DemandRegister> buildingDemands = new ArrayList<>();
 
-        // Calculate 70% of previous year's paying buildings
-        int payingBuildingsCount = (int) Math.ceil(previousYearDemands.size() * PAYING_PERCENTAGE);
+        // First year gets initial values
+        DemandRegister previousDemand = createInitialDemand(building, startYear);
+        buildingDemands.add(previousDemand);
 
-        // Shuffle and select the required number of buildings
-        Collections.shuffle(previousYearDemands);
-        List<DemandRegister> selectedDemands = previousYearDemands.stream()
-                .limit(payingBuildingsCount)
-                .collect(Collectors.toList());
+        // Subsequent years build on previous
+        for (int year = startYear + 1; year <= endYear; year++) {
+            DemandRegister currentDemand = createNextYearDemand(previousDemand, year);
+            buildingDemands.add(currentDemand);
+            previousDemand = currentDemand;
+        }
 
-        // Create new demands for current year based on previous year's data
-        List<DemandRegister> newDemands = selectedDemands.stream()
-                .map(previousDemand -> createNextYearDemand(previousDemand, year))
-                .collect(Collectors.toList());
-
-        demandRegisterRepository.saveAll(newDemands);
+        demandRegisterRepository.saveAll(buildingDemands);
     }
 
-    // private DemandRegister createDemandForYear(BuildingMaster building) {
-    // return createDemandForYear(building, START_YEAR);
-    // }
-
-    private DemandRegister createDemandForYear(BuildingMaster building, int year) {
-        // Add validation
-        Objects.requireNonNull(building.getBuildingId(), "Building must be persisted first");
+    private DemandRegister createInitialDemand(BuildingMaster building, int year) {
         DemandRegister demand = new DemandRegister();
         demand.setBuilding(building);
         demand.setInt_year_id(year);
-        demand.setInt_period_id(1);
+        demand.setInt_period_id(1); // Assuming period 1 is standard
 
+        // Set tax values
         BigDecimal taxRate = new BigDecimal(building.getTaxRate());
         demand.setNum_tax_rate(taxRate);
+        demand.setNum_lc(taxRate.multiply(new BigDecimal("0.10")));
 
-        BigDecimal lc = taxRate.multiply(new BigDecimal("0.10"));
-        demand.setNum_lc(lc);
+        // Payment details (always generated for this approach)
+        demand.setDt_receipt(generatePaymentDate(year));
+        demand.setInt_receipt_id(1000 + random.nextInt(9000));
 
-        demand.setTny_arrear_flag(random.nextDouble() < 0.1);
-
-        if (random.nextDouble() < 0.7) {
-            LocalDate receiptDate = generateRandomDate(
-                    LocalDate.of(year - 1, Month.MARCH, 1),
-                    LocalDate.of(year, Month.MARCH, 31));
-            demand.setDt_receipt(receiptDate);
-            demand.setInt_receipt_id(1000 + random.nextInt(9000));
-        } else {
-            demand.setDt_receipt(null);
-            demand.setInt_receipt_id(null);
-        }
+        // First year never has arrears
+        demand.setTny_arrear_flag(false);
 
         return demand;
     }
@@ -126,44 +96,47 @@ public class DemandGenerationService {
     private DemandRegister createNextYearDemand(DemandRegister previousDemand, int newYear) {
         DemandRegister newDemand = new DemandRegister();
 
-        // Copy basic information
+        // Copy basic info
         newDemand.setBuilding(previousDemand.getBuilding());
         newDemand.setInt_year_id(newYear);
         newDemand.setInt_period_id(previousDemand.getInt_period_id());
 
-        // Apply inflation to tax rate (5% per year)
+        // Apply inflation
         BigDecimal inflationFactor = new BigDecimal("1.05");
         newDemand.setNum_tax_rate(previousDemand.getNum_tax_rate().multiply(inflationFactor));
         newDemand.setNum_lc(newDemand.getNum_tax_rate().multiply(new BigDecimal("0.10")));
 
-        // Arrear logic - higher chance if previous was unpaid
-        boolean previousUnpaid = !isPaid(previousDemand);
-        newDemand.setTny_arrear_flag(previousUnpaid ? random.nextDouble() < 0.8 : // 80% chance if unpaid
-                random.nextDouble() < 0.1); // 10% chance if paid
+        // Payment details (always generated)
+        newDemand.setDt_receipt(generatePaymentDate(newYear));
+        newDemand.setInt_receipt_id(1000 + random.nextInt(9000));
 
-        // Payment generation (70% chance)
-        if (random.nextDouble() < 0.7) {
-            LocalDate receiptDate = generateRandomDate(
-                    LocalDate.of(newYear - 1, Month.MARCH, 1),
-                    LocalDate.of(newYear, Month.MARCH, 31));
-            newDemand.setDt_receipt(receiptDate);
-            newDemand.setInt_receipt_id(1000 + random.nextInt(9000));
-        } else {
-            newDemand.setDt_receipt(null);
-            newDemand.setInt_receipt_id(null);
-        }
+        // Arrears only if previous payment was late (optional logic)
+        LocalDate prevPayment = previousDemand.getDt_receipt();
+        boolean prevWasLate = prevPayment != null &&
+                prevPayment.getMonthValue() > 3; // Paid after March
+        newDemand.setTny_arrear_flag(prevWasLate && random.nextDouble() < 0.3);
 
         return newDemand;
     }
 
-    private boolean isPaid(DemandRegister demand) {
-        return demand.getDt_receipt() != null && demand.getInt_receipt_id() != null;
+    private LocalDate generatePaymentDate(int year) {
+        // Generate date between April 1 (current year) and March 31 (next year)
+        // This ensures payment date matches the financial year
+        int startMonth = random.nextBoolean() ? 4 : 1; // 50% chance current/next year
+        if (startMonth == 4) {
+            // Current year payment (April-Dec)
+            int month = 4 + random.nextInt(9); // April-December
+            int day = 1 + random.nextInt(Month.of(month).length(false) - 1);
+            return LocalDate.of(year, month, day);
+        } else {
+            // Next year payment (Jan-Mar)
+            int month = 1 + random.nextInt(3); // January-March
+            int day = 1 + random.nextInt(Month.of(month).length(false) - 1);
+            return LocalDate.of(year + 1, month, day);
+        }
     }
+    // private DemandRegister createDemandForYear(BuildingMaster building) {
+    // return createDemandForYear(building, START_YEAR);
+    // }
 
-    private LocalDate generateRandomDate(LocalDate startInclusive, LocalDate endExclusive) {
-        long startEpochDay = startInclusive.toEpochDay();
-        long endEpochDay = endExclusive.toEpochDay();
-        long randomDay = startEpochDay + random.nextInt((int) (endEpochDay - startEpochDay));
-        return LocalDate.ofEpochDay(randomDay);
-    }
 }
